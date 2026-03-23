@@ -15,9 +15,13 @@ import (
 
 type Server struct {
 	Config
-	rules      []*Rule
-	rulesLock  sync.RWMutex
-	livingLock sync.Mutex
+	rules     []*Rule
+	rulesLock sync.RWMutex
+	stateLock sync.Mutex
+	running   bool
+	stopCh    chan struct{}
+	stopOnce  sync.Once
+	listener  net.Listener
 }
 
 var (
@@ -27,7 +31,7 @@ var (
 
 func GetServer() *Server {
 	once.Do(func() {
-		server = &Server{rulesLock: sync.RWMutex{}, livingLock: sync.Mutex{}}
+		server = &Server{rulesLock: sync.RWMutex{}, stateLock: sync.Mutex{}}
 	})
 	return server
 }
@@ -43,6 +47,17 @@ func (s *Server) UpdateRules() error {
 	defer s.rulesLock.Unlock()
 	s.rulesLock.Lock()
 	return errors.Wrap(db.Order("base_rank desc").Find(&s.rules).Error, "LDAP update rules error")
+}
+
+func parsePath(buf []byte, n int) (string, bool) {
+	if n < 10 || len(buf) < n || len(buf) < 9 {
+		return "", false
+	}
+	length := int(buf[8])
+	if length <= 0 || 9+length > n {
+		return "", false
+	}
+	return string(buf[9 : 9+length]), true
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -61,13 +76,13 @@ func (s *Server) handleConnection(conn net.Conn) {
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 
 	buf := make([]byte, 1024)
-	_, err := conn.Read(buf)
+	n, err := conn.Read(buf)
 	if err != nil {
 		log.Warn("LDAP read connection error:%v", err)
 		return
 	}
 
-	if !bytes.Contains(buf, []byte{
+	if !bytes.Contains(buf[:n], []byte{
 		0x30, 0x0c, 0x02, 0x01, 0x01, 0x60, 0x07,
 		0x02, 0x01, 0x03, 0x04, 0x00, 0x80, 0x00}) {
 		return
@@ -82,19 +97,16 @@ func (s *Server) handleConnection(conn net.Conn) {
 		log.Warn("LDAP write connection error: %v", err)
 		return
 	}
-	_, err = conn.Read(buf)
+	n, err = conn.Read(buf)
 	if err != nil {
 		log.Warn("LDAP read connection error:%v", err)
 		return
 	}
-
-	length := buf[8]
-	pathBytes := bytes.Buffer{}
-	for i := 1; i <= int(length); i++ {
-		temp := []byte{buf[8+i]}
-		pathBytes.Write(temp)
+	path, ok := parsePath(buf, n)
+	if !ok {
+		log.Warn("LDAP invalid packet from %s", conn.RemoteAddr())
+		return
 	}
-	path := pathBytes.String()
 
 	for _, _rule := range s.getRules() {
 		flag, flagGroup, _ := _rule.Match(path)
@@ -140,8 +152,22 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 func (s *Server) Stop() {
 	log.Info("LDAP Server is stopping...")
+	s.stateLock.Lock()
+	if !s.running {
+		s.Enable = false
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = false
 	s.Enable = false
-	s.livingLock.Unlock()
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	listener := s.listener
+	s.stateLock.Unlock()
+	if listener != nil {
+		_ = listener.Close()
+	}
 }
 
 func (s *Server) Restart() {
@@ -151,18 +177,26 @@ func (s *Server) Restart() {
 }
 
 func (s *Server) Run() {
+	s.stateLock.Lock()
+	if s.running {
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = true
 	s.Enable = true
-	s.livingLock.Lock()
+	s.stopCh = make(chan struct{})
+	s.stopOnce = sync.Once{}
+	s.stateLock.Unlock()
 	defer func() {
-		if s.Enable {
-			log.Error("LDAP Server exited unexpectedly")
-			s.Enable = false
-			s.livingLock.Unlock()
-		}
+		s.stateLock.Lock()
+		s.running = false
+		s.Enable = false
+		s.listener = nil
+		s.stateLock.Unlock()
 	}()
 
 	if err := s.UpdateRules(); err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
 
@@ -171,17 +205,12 @@ func (s *Server) Run() {
 
 	listener, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
-
-	go func() {
-		s.livingLock.Lock()
-		if !s.Enable {
-			_ = listener.Close()
-		}
-		s.livingLock.Unlock()
-	}()
+	s.stateLock.Lock()
+	s.listener = listener
+	s.stateLock.Unlock()
 
 	for {
 		tcpConn, err := listener.Accept()

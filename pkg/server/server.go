@@ -37,7 +37,6 @@ type Revsuit struct {
 	clients     map[int]*gin.Context
 	clientID    int
 	clientsLock sync.RWMutex
-	clientsNum  chan struct{}
 }
 
 func (revsuit *Revsuit) addClient(c *gin.Context) int {
@@ -48,7 +47,6 @@ func (revsuit *Revsuit) addClient(c *gin.Context) int {
 	revsuit.clients[revsuit.clientID] = c
 	sse.Event{}.WriteContentType(c.Writer)
 	c.Writer.Flush()
-	revsuit.clientsNum <- struct{}{}
 	return revsuit.clientID
 }
 
@@ -57,7 +55,6 @@ func (revsuit *Revsuit) removeClient(id int) {
 	defer revsuit.clientsLock.Unlock()
 
 	delete(revsuit.clients, id)
-	<-revsuit.clientsNum
 }
 
 func initDatabase(dsn string) {
@@ -69,37 +66,37 @@ func initDatabase(dsn string) {
 	err := database.InitDB(dsn)
 
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&http.Record{}, &http.Rule{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&dns.Record{}, &dns.Rule{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&mysql.Record{}, &mysql.Rule{}, &file.MySQLFile{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&rmi.Record{}, &rmi.Rule{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&ldap.Record{}, &ldap.Rule{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 
 	err = database.DB.AutoMigrate(&ftp.Record{}, &ftp.Rule{}, &file.FTPFile{})
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 }
 
@@ -207,7 +204,6 @@ func New(c *Config) *Revsuit {
 		s.ftp.SetPasvIP(c.ExternalIP)
 	}
 	s.clients = make(map[int]*gin.Context)
-	s.clientsNum = make(chan struct{}, 100)
 	return s
 }
 
@@ -232,8 +228,11 @@ func (revsuit *Revsuit) Run() {
 	}
 	go func() {
 		for r := range record.Channel() {
-			<-revsuit.clientsNum
 			revsuit.clientsLock.RLock()
+			if len(revsuit.clients) == 0 {
+				revsuit.clientsLock.RUnlock()
+				continue
+			}
 			for _, client := range revsuit.clients {
 				pushIt := false
 				flag := client.Request.Header.Get("Flag-Filter")
@@ -253,7 +252,6 @@ func (revsuit *Revsuit) Run() {
 					client.Writer.Flush()
 				}
 			}
-			revsuit.clientsNum <- struct{}{}
 			revsuit.clientsLock.RUnlock()
 		}
 	}()

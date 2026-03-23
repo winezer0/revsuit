@@ -97,5 +97,13 @@ func isIOError(err error) bool {
 		return true
 	}
 
+	if strings.Contains(err.Error(), "EOF") {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "connection refused") {
+		return true
+	}
+
 	return false
 }

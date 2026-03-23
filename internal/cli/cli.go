@@ -105,6 +105,6 @@ func Start() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 }

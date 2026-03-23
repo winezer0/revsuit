@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	Url = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
+	DefaultGeoIPURL = "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 )
 
-func get(url string) (b []byte, err error) {
+func getBytes(url string) (b []byte, err error) {
 	var resp *http.Response
 	client := http.Client{
 		Timeout: 90 * time.Second,
@@ -85,10 +85,20 @@ func extractTarGz(gzipStream io.Reader) error {
 	return nil
 }
 
-func download(licenseKey string) (err error) {
+func resolveDownloadURL(licenseKey, downloadURL string) string {
+	if strings.TrimSpace(downloadURL) == "" {
+		downloadURL = DefaultGeoIPURL
+	}
+	if strings.Contains(downloadURL, "%s") {
+		return fmt.Sprintf(downloadURL, licenseKey)
+	}
+	return downloadURL
+}
+
+func download(licenseKey, downloadURL string) (err error) {
 	var GeoLite2TarGz []byte
 	log.Info("Downloading GeoLite2-City.mmdb...")
-	if GeoLite2TarGz, err = get(fmt.Sprintf(Url, licenseKey)); err != nil {
+	if GeoLite2TarGz, err = getBytes(resolveDownloadURL(licenseKey, downloadURL)); err != nil {
 		return err
 	}
 

@@ -18,9 +18,9 @@ func Area(ip string) string {
 func Init(config Config) {
 	switch config.Database {
 	case "qqwry":
-		db = qqwry.New()
+		db = qqwry.New(config.QQwryURL)
 	case "geoip":
-		db = geoip.New(config.GeoLicenseKey)
+		db = geoip.New(config.GeoLicenseKey, config.GeoIPURL)
 	default:
 		log.Fatal("wrong ip location database type: %q", config.Database)
 	}

@@ -3,6 +3,7 @@ package newdns
 import (
 	"context"
 	"net"
+	"os"
 	"testing"
 	"time"
 
@@ -113,15 +114,30 @@ var otherNSRRs = []dns.RR{
 }
 
 func TestAWS(t *testing.T) {
+	if os.Getenv("NEWDNS_RUN_AWS_TESTS") != "true" {
+		t.Skip("skip aws integration tests")
+	}
 	t.Run("UDP", func(t *testing.T) {
+		_, err := Query("udp", awsPrimaryNS+":53", "newdns.256dpi.com.", "A", nil)
+		if isIOError(err) {
+			t.Skipf("skip aws udp tests due network issue: %v", err)
+		}
 		conformanceTests(t, "udp", awsPrimaryNS+":53", false)
 	})
 
 	t.Run("TCP", func(t *testing.T) {
+		_, err := Query("tcp", awsPrimaryNS+":53", "newdns.256dpi.com.", "A", nil)
+		if isIOError(err) {
+			t.Skipf("skip aws tcp tests due network issue: %v", err)
+		}
 		conformanceTests(t, "tcp", awsPrimaryNS+":53", false)
 	})
 
 	t.Run("Resolver", func(t *testing.T) {
+		_, err := Query("udp", awsPrimaryNS+":53", "newdns.256dpi.com.", "A", nil)
+		if isIOError(err) {
+			t.Skipf("skip aws resolver tests due network issue: %v", err)
+		}
 		resolverTests(t, awsPrimaryNS+":53")
 	})
 }

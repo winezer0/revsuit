@@ -41,7 +41,7 @@ func (c *Conn) WriteComQuery(query string) error {
 	data[0] = ComQuery
 	copy(data[1:], query)
 	if err := c.writeEphemeralPacket(); err != nil {
-		return NewSQLError(CRServerGone, SSUnknownSQLState, err.Error())
+		return NewSQLError(CRServerGone, SSUnknownSQLState, "%s", err)
 	}
 	return nil
 }
@@ -226,6 +226,9 @@ func (c *Conn) parseRow(data []byte, fields []*querypb.Field) ([]sqltypes.Value,
 	result := make([]sqltypes.Value, colNumber)
 	pos := 0
 	for i := 0; i < colNumber; i++ {
+		if pos >= len(data) {
+			return nil, NewSQLError(CRMalformedPacket, SSUnknownSQLState, "row packet out of range")
+		}
 		if data[pos] == 0xfb {
 			pos++
 			continue

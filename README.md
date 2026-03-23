@@ -30,8 +30,8 @@ Download the latest release directly or build by following steps:
 
 ```bash
 git clone https://github.com/Li4n0/revsuit.git
-cd revsuit/frontend && yarn install && yarn build
-cd ../ && go build ./cmd/revsuit/revsuit.go
+cd revsuit/frontend && npm install --legacy-peer-deps && npm run build
+cd ../ && go build ./cmd/revsuit/main.go
 ```
 
 RevSuit will generate default configuration file on first run. Modify the configuration file according to your needs,

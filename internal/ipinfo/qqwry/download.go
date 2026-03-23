@@ -1,40 +1,45 @@
 package qqwry
 
 import (
-	"bytes"
-	"compress/zlib"
-	"crypto/tls"
-	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"sync"
+	"strings"
 	"time"
 
 	log "unknwon.dev/clog/v2"
 )
 
 const (
-	CopyWriteUrl = "https://qqwry.mirror.noc.one/copywrite.rar"
-	Url          = "https://qqwry.mirror.noc.one/qqwry.rar"
+	DefaultQQWryURL = "https://github.com/metowolf/qqwry.dat/releases/latest/download/qqwry.dat"
 )
 
-func get(url string) (b []byte, err error) {
-	var resp *http.Response
+func resolveDownloadURL(url string) string {
+	if strings.TrimSpace(url) == "" {
+		return DefaultQQWryURL
+	}
+	return url
+}
+
+func download(url string) (err error) {
+	log.Info("Downloading qqwry.dat...")
+
 	client := http.Client{
 		Timeout: 90 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // disable verify
-		}}
-	request, _ := http.NewRequest("GET", url, nil)
-	request.Header.Add("User-Agent", "Nali/2.1.2 (Nali CLI, https://nali.skk.moe)")
-
-	resp, err = client.Do(request)
-	if err != nil {
-		return
 	}
 
+	request, err := http.NewRequest(http.MethodGet, resolveDownloadURL(url), nil)
+	if err != nil {
+		return err
+	}
+	request.Header.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+	resp, err := client.Do(request)
+	if err != nil {
+		return err
+	}
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
@@ -42,73 +47,18 @@ func get(url string) (b []byte, err error) {
 		}
 	}(resp.Body)
 
-	return io.ReadAll(resp.Body)
-}
-
-func getKey(b []byte) (key uint32, err error) {
-	if len(b) != 280 {
-		return 0, errors.New("copywrite.rar is corrupt")
-	}
-	key = binary.LittleEndian.Uint32(b[20:])
-	return key, err
-}
-
-func decrypt(b []byte, key uint32) (_ []byte, err error) {
-	var rc io.ReadCloser
-	for i := 0; i < 0x200; i++ {
-		key *= uint32(0x805)
-		key++
-		key &= uint32(0xff)
-		b[i] = b[i] ^ byte(key)
-	}
-	rc, err = zlib.NewReader(bytes.NewBuffer(b))
-	if err != nil {
-		return
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to download qqwry.dat, status code: %d", resp.StatusCode)
 	}
 
-	defer func(rc io.ReadCloser) {
-		err := rc.Close()
-		if err != nil {
-			log.Warn("%v", err)
-		}
-	}(rc)
-
-	return io.ReadAll(rc)
-}
-
-func download() (err error) {
-	var (
-		copyWriteData, qqwryData []byte
-		wg                       sync.WaitGroup
-		key                      uint32
-	)
-	log.Info("Downloading qqwry.dat...")
-
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		if copyWriteData, err = get(CopyWriteUrl); err != nil {
-			return
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		if qqwryData, err = get(Url); err != nil {
-			return
-		}
-	}()
-	wg.Wait()
-
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
-	if key, err = getKey(copyWriteData); err != nil {
-		return err
+
+	if len(data) < 1000 {
+		return errors.New("downloaded qqwry.dat is too small, possibly corrupt")
 	}
-	if b, err := decrypt(qqwryData, key); err != nil {
-		return err
-	} else {
-		return os.WriteFile("qqwry.dat", b, 0644)
-	}
+
+	return os.WriteFile(qqwryDataPath, data, 0644)
 }

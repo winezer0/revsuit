@@ -27,8 +27,8 @@ RevSuit 是一款灵活并且强大的反连平台。目前支持 HTTP、DNS、R
 
 ```bash
 git clone https://github.com/Li4n0/revsuit.git
-cd revsuit/frontend && yarn install && yarn build
-cd ../ && go build ./cmd/revsuit/revsuit.go
+cd revsuit/frontend && npm install --legacy-peer-deps && npm run build
+cd ../ && go build ./cmd/revsuit/main.go
 ```
 
 RevSuit首次运行将会在当前目录生成配置文件，您可以根据需要自定义其中的某些内容。配置文件的详细说明可见：[配置说明](./CONFIG.zh-CN.md)

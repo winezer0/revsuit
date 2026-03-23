@@ -22,11 +22,16 @@ import (
 
 type Server struct {
 	Config
-	pasvIP      string
-	rules       []*Rule
-	rulesLock   sync.RWMutex
-	livingLock  sync.Mutex
-	dataChannel chan map[string]interface{}
+	pasvIP       string
+	rules        []*Rule
+	rulesLock    sync.RWMutex
+	stateLock    sync.Mutex
+	running      bool
+	stopCh       chan struct{}
+	stopOnce     sync.Once
+	listener     net.Listener
+	pasvListener net.Listener
+	dataChannel  chan map[string]interface{}
 }
 
 type Status string
@@ -51,7 +56,7 @@ var (
 
 func GetServer() *Server {
 	once.Do(func() {
-		server = &Server{rulesLock: sync.RWMutex{}, dataChannel: make(chan map[string]interface{}, 10)}
+		server = &Server{rulesLock: sync.RWMutex{}, stateLock: sync.Mutex{}, dataChannel: make(chan map[string]interface{}, 10)}
 	})
 	return server
 }
@@ -127,6 +132,15 @@ const (
 	DirectoryChanged        = "250 Directory successfully changed.\r\n"
 	CurrentDirectory        = "257 \"%s\" is the current directory\r\n"
 )
+
+func waitUploadData(dataChannel <-chan []byte, timeout time.Duration) ([]byte, bool) {
+	select {
+	case data := <-dataChannel:
+		return data, true
+	case <-time.After(timeout):
+		return nil, false
+	}
+}
 
 func (s *Server) handleConnection(conn net.Conn) {
 	defer func() {
@@ -258,8 +272,13 @@ loop:
 				if !isRedirect {
 					dataChannel := make(chan []byte)
 					s.dataChannel <- map[string]interface{}{clientPasvConnAddress: dataChannel}
-					uploadData = <-dataChannel
-					log.Trace("FTP connection[%s] uploaded %d bytes", conn.RemoteAddr(), len(uploadData))
+					data, ok := waitUploadData(dataChannel, 10*time.Second)
+					if ok {
+						uploadData = data
+						log.Trace("FTP connection[%s] uploaded %d bytes", conn.RemoteAddr(), len(uploadData))
+					} else {
+						log.Warn("FTP connection[%s] uploaded data timeout", conn.RemoteAddr())
+					}
 				}
 				_, _ = connBuf.WriteString(TransferComplete)
 			case "QUIT":
@@ -307,7 +326,11 @@ func (s *Server) handlePasvConnection(conn net.Conn, data map[string]interface{}
 		if err != nil {
 			log.Warn("FTP PASV server received data from connection[%s] failed with error: %s", remoteAddress, err)
 		}
-		v <- buf
+		select {
+		case v <- buf:
+		case <-time.After(3 * time.Second):
+			log.Warn("FTP PASV server forward data timeout to connection[%s]", remoteAddress)
+		}
 		log.Trace("FTP PASV server has received data from connection[%s]", remoteAddress)
 	}
 
@@ -315,7 +338,7 @@ func (s *Server) handlePasvConnection(conn net.Conn, data map[string]interface{}
 }
 
 // run pasv server
-func (s *Server) runPasvServer() (net.Listener, error) {
+func (s *Server) runPasvServer(stopCh <-chan struct{}) (net.Listener, error) {
 	pasvAddress := fmt.Sprintf("%s:%d", strings.Split(s.Addr, ":")[0], s.PasvPort)
 	log.Info("Start to listen FTP PASV port at %v, PasvIP is %v", pasvAddress, s.pasvIP)
 	listener, err := net.Listen("tcp", pasvAddress)
@@ -325,17 +348,22 @@ func (s *Server) runPasvServer() (net.Listener, error) {
 	}
 
 	go func() {
-		for data := range s.dataChannel {
-			tcpConn, err := listener.Accept()
-			if err != nil {
-				if !strings.Contains(err.Error(), net.ErrClosed.Error()) {
-					log.Warn("FTP accept connection error: %v", err)
-				} else {
-					break
+		for {
+			select {
+			case <-stopCh:
+				return
+			case data := <-s.dataChannel:
+				tcpConn, err := listener.Accept()
+				if err != nil {
+					if !strings.Contains(err.Error(), net.ErrClosed.Error()) {
+						log.Warn("FTP accept connection error: %v", err)
+					} else {
+						return
+					}
+					continue
 				}
-				continue
+				s.handlePasvConnection(tcpConn, data)
 			}
-			s.handlePasvConnection(tcpConn, data)
 		}
 	}()
 	return listener, nil
@@ -343,8 +371,26 @@ func (s *Server) runPasvServer() (net.Listener, error) {
 
 func (s *Server) Stop() {
 	log.Info("FTP Server is stopping...")
+	s.stateLock.Lock()
+	if !s.running {
+		s.Enable = false
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = false
 	s.Enable = false
-	s.livingLock.Unlock()
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	listener := s.listener
+	pasvListener := s.pasvListener
+	s.stateLock.Unlock()
+	if listener != nil {
+		_ = listener.Close()
+	}
+	if pasvListener != nil {
+		_ = pasvListener.Close()
+	}
 }
 
 func (s *Server) Restart() {
@@ -354,25 +400,37 @@ func (s *Server) Restart() {
 }
 
 func (s *Server) Run() {
+	s.stateLock.Lock()
+	if s.running {
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = true
 	s.Enable = true
-	s.livingLock.Lock()
+	s.stopCh = make(chan struct{})
+	s.stopOnce = sync.Once{}
+	s.stateLock.Unlock()
 	defer func() {
-		if s.Enable {
-			log.Error("FTP Server exited unexpectedly")
-			s.Enable = false
-			s.livingLock.Unlock()
-		}
+		s.stateLock.Lock()
+		s.running = false
+		s.Enable = false
+		s.listener = nil
+		s.pasvListener = nil
+		s.stateLock.Unlock()
 	}()
 
 	if err := s.UpdateRules(); err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
 
-	pasvListener, err := s.runPasvServer()
+	pasvListener, err := s.runPasvServer(s.stopCh)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 	}
+	s.stateLock.Lock()
+	s.pasvListener = pasvListener
+	s.stateLock.Unlock()
 	defer func() {
 		if pasvListener != nil {
 			_ = pasvListener.Close()
@@ -384,17 +442,12 @@ func (s *Server) Run() {
 
 	listener, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		log.Error(errors.Wrap(err, "FTP failed to start").Error())
+		log.Error("%v", errors.Wrap(err, "FTP failed to start"))
 		return
 	}
-
-	go func() {
-		s.livingLock.Lock()
-		if !s.Enable {
-			_ = listener.Close()
-		}
-		s.livingLock.Unlock()
-	}()
+	s.stateLock.Lock()
+	s.listener = listener
+	s.stateLock.Unlock()
 
 	for {
 		tcpConn, err := listener.Accept()

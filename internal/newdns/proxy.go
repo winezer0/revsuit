@@ -1,6 +1,10 @@
 package newdns
 
-import "github.com/miekg/dns"
+import (
+	"time"
+
+	"github.com/miekg/dns"
+)
 
 // Proxy returns a handler that proxies requests to the provided DNS server. The
 // optional logger is called with events about the processing of requests.
@@ -12,7 +16,8 @@ func Proxy(addr string, logger Logger) dns.Handler {
 		}
 
 		// forward request to fallback
-		rs, err := dns.Exchange(req, addr)
+		client := dns.Client{Timeout: 5 * time.Second}
+		rs, _, err := client.Exchange(req, addr)
 		if err != nil {
 			if logger != nil {
 				logger(ProxyError, nil, err, "")

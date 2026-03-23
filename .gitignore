@@ -1,7 +1,6 @@
 .DS_Store
 
 # local files
-qqwry.dat
 GeoLite2-City.mmdb
 *.db
 *.db-shm
@@ -32,3 +31,5 @@ dist/
 
 ## received files
 revsuit-files
+/bin
+qqwry.dat

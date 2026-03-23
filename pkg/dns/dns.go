@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -21,7 +22,11 @@ type Server struct {
 	serverIP      string
 	rules         []*Rule
 	rulesLock     sync.RWMutex
-	livingLock    sync.Mutex
+	stateLock     sync.Mutex
+	running       bool
+	stopCh        chan struct{}
+	stopOnce      sync.Once
+	listener      *newdns.Server
 }
 
 var (
@@ -32,7 +37,7 @@ var (
 
 func GetServer() *Server {
 	once.Do(func() {
-		server = &Server{rulesLock: sync.RWMutex{}, livingLock: sync.Mutex{}}
+		server = &Server{rulesLock: sync.RWMutex{}, stateLock: sync.Mutex{}}
 	})
 	return server
 }
@@ -191,8 +196,22 @@ func (s *Server) newZone(name string) *newdns.Zone {
 
 func (s *Server) Stop() {
 	log.Info("DNS server is stopping...")
+	s.stateLock.Lock()
+	if !s.running {
+		s.Enable = false
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = false
 	s.Enable = false
-	s.livingLock.Unlock()
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	listener := s.listener
+	s.stateLock.Unlock()
+	if listener != nil {
+		listener.Close()
+	}
 }
 
 func (s *Server) Restart() {
@@ -202,24 +221,31 @@ func (s *Server) Restart() {
 }
 
 func (s *Server) Run() {
+	s.stateLock.Lock()
+	if s.running {
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = true
 	s.Enable = true
-	s.livingLock.Lock()
-
+	s.stopCh = make(chan struct{})
+	s.stopOnce = sync.Once{}
+	s.stateLock.Unlock()
 	defer func() {
-		if s.Enable {
-			log.Error("DNS Server exited unexpectedly")
-			s.Enable = false
-			s.livingLock.Unlock()
-		}
+		s.stateLock.Lock()
+		s.running = false
+		s.Enable = false
+		s.listener = nil
+		s.stateLock.Unlock()
 	}()
 
 	if err := s.UpdateRules(); err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
 
 	// create server
-	server := newdns.NewServer(newdns.Config{
+	listener := newdns.NewServer(newdns.Config{
 		Handler: func(name string) (*newdns.Zone, error) {
 			for _, serverDomain := range s.serverDomains {
 				if name == serverDomain+"." {
@@ -249,21 +275,17 @@ func (s *Server) Run() {
 		},
 	})
 
-	// run server
+	s.stateLock.Lock()
+	s.listener = listener
+	s.stateLock.Unlock()
 	log.Info("Starting DNS Server at :53, resolve %v to %s", s.serverDomains, s.serverIP)
-	go func() {
-		s.livingLock.Lock()
-		if !s.Enable {
-			server.Close()
-		}
-		s.livingLock.Unlock()
-	}()
-
-	err := server.Run(s.Addr)
-	defer server.Close()
+	err := listener.Run(s.Addr)
+	listener.Close()
 
 	if err != nil {
-		log.Error(err.Error())
+		if !errors.Is(err, net.ErrClosed) {
+			log.Error("%v", err)
+		}
 		return
 	}
 }

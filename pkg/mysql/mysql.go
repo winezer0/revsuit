@@ -25,9 +25,12 @@ var (
 
 type Server struct {
 	Config
-	rules      []*Rule
-	rulesLock  sync.RWMutex
-	livingLock sync.Mutex
+	rules     []*Rule
+	rulesLock sync.RWMutex
+	stateLock sync.Mutex
+	running   bool
+	stopCh    chan struct{}
+	stopOnce  sync.Once
 
 	listener *vmysql.Listener
 	Handler  vmysql.Handler
@@ -37,7 +40,7 @@ type Server struct {
 
 func GetServer() *Server {
 	once.Do(func() {
-		server = &Server{rulesLock: sync.RWMutex{}, livingLock: sync.Mutex{}}
+		server = &Server{rulesLock: sync.RWMutex{}, stateLock: sync.Mutex{}}
 	})
 	return server
 }
@@ -268,8 +271,22 @@ func (s *Server) WarningCount(c *vmysql.Conn) uint16 {
 
 func (s *Server) Stop() {
 	log.Info("MySQL Server is stopping...")
+	s.stateLock.Lock()
+	if !s.running {
+		s.Enable = false
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = false
 	s.Enable = false
-	s.livingLock.Unlock()
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	listener := s.listener
+	s.stateLock.Unlock()
+	if listener != nil {
+		listener.Close()
+	}
 }
 
 func (s *Server) Restart() {
@@ -279,17 +296,25 @@ func (s *Server) Restart() {
 }
 
 func (s *Server) Run() {
+	s.stateLock.Lock()
+	if s.running {
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = true
 	s.Enable = true
-	s.livingLock.Lock()
+	s.stopCh = make(chan struct{})
+	s.stopOnce = sync.Once{}
+	s.stateLock.Unlock()
 	defer func() {
-		if s.Enable {
-			log.Error("MySQL Server exited unexpectedly")
-			s.Enable = false
-			s.livingLock.Unlock()
-		}
+		s.stateLock.Lock()
+		s.running = false
+		s.Enable = false
+		s.listener = nil
+		s.stateLock.Unlock()
 	}()
 	if err := s.UpdateRules(); err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
 
@@ -304,14 +329,6 @@ func (s *Server) Run() {
 		log.Error("New MySQL Server failed: %s", err)
 		return
 	}
-
-	go func() {
-		s.livingLock.Lock()
-		if !s.Enable {
-			s.listener.Close()
-		}
-		s.livingLock.Unlock()
-	}()
 
 	s.listener.Accept()
 }

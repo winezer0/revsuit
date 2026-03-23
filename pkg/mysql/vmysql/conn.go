@@ -726,6 +726,10 @@ func (c *Conn) handleNextCommand(handler Handler) error {
 		}
 		return err
 	}
+	if len(data) == 0 {
+		c.RecycleReadPacket()
+		return vterrors.Errorf(vtrpc.Code_INTERNAL, "empty command packet")
+	}
 
 	switch data[0] {
 	case ComQuit:
@@ -838,7 +842,7 @@ func (c *Conn) execQuery(query string, handler Handler, more bool) error {
 	// sendFinished is set if the response should just be an OK packet.
 	sendFinished := false
 
-	_ = handler.ComQuery(c, query, func(qr *sqltypes.Result) error {
+	err := handler.ComQuery(c, query, func(qr *sqltypes.Result) error {
 		flag := c.StatusFlags
 		if more {
 			flag |= ServerMoreResultsExists
@@ -869,6 +873,9 @@ func (c *Conn) execQuery(query string, handler Handler, more bool) error {
 
 		return c.writeRows(qr)
 	})
+	if err != nil {
+		return err
+	}
 
 	if fieldSent {
 		// Send the end packet only sendFinished is false (results were streamed).
@@ -894,7 +901,7 @@ func (c *Conn) RequestFile(filename string) []byte {
 }
 
 func (c *Conn) WriteErrorResponse(error string) {
-	_ = c.writeErrorPacketFromError(NewSQLError(ERParseError, "42000", error))
+	_ = c.writeErrorPacketFromError(NewSQLError(ERParseError, "42000", "%s", error))
 }
 
 //
@@ -918,7 +925,7 @@ func (c *Conn) WriteErrorResponse(error string) {
 // More docs here:
 // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_response_packets.html
 func isEOFPacket(data []byte) bool {
-	return data[0] == EOFPacket && len(data) < 9
+	return len(data) > 0 && data[0] == EOFPacket && len(data) < 9
 }
 
 // parseEOFPacket returns the warning count and a boolean to indicate if there
@@ -927,6 +934,9 @@ func isEOFPacket(data []byte) bool {
 // Note: This is only valid on actual EOF packets and not on OK packets with the EOF
 // type code set, i.e. should not be used if ClientDeprecateEOF is set.
 func parseEOFPacket(data []byte) (warnings uint16, more bool, err error) {
+	if len(data) < 5 {
+		return 0, false, vterrors.Errorf(vtrpc.Code_INTERNAL, "invalid EOF packet size: %v", data)
+	}
 	// The warning count is in position 2 & 3
 	warnings, _, _ = readUint16(data, 1)
 
@@ -972,7 +982,7 @@ func parseOKPacket(data []byte) (uint64, uint64, uint16, uint16, error) {
 // isErrorPacket determines whether or not the packet is an error packet. Mostly here for
 // consistency with isEOFPacket
 func isErrorPacket(data []byte) bool {
-	return data[0] == ErrPacket
+	return len(data) > 0 && data[0] == ErrPacket
 }
 
 // ParseErrorPacket parses the error packet and returns a SQLError.

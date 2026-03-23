@@ -18,9 +18,13 @@ import (
 
 type Server struct {
 	Config
-	rules      []*Rule
-	rulesLock  sync.RWMutex
-	livingLock sync.Mutex
+	rules     []*Rule
+	rulesLock sync.RWMutex
+	stateLock sync.Mutex
+	running   bool
+	stopCh    chan struct{}
+	stopOnce  sync.Once
+	listener  net.Listener
 }
 
 var (
@@ -30,7 +34,7 @@ var (
 
 func GetServer() *Server {
 	once.Do(func() {
-		server = &Server{rulesLock: sync.RWMutex{}, livingLock: sync.Mutex{}}
+		server = &Server{rulesLock: sync.RWMutex{}, stateLock: sync.Mutex{}}
 	})
 	return server
 }
@@ -46,6 +50,21 @@ func (s *Server) UpdateRules() error {
 	defer s.rulesLock.Unlock()
 	s.rulesLock.Lock()
 	return errors.Wrap(db.Order("base_rank desc").Find(&s.rules).Error, "RMI update rules error")
+}
+
+func parseRMIPath(data []byte, n int) (string, bool) {
+	if n <= 0 || len(data) < n {
+		return "", false
+	}
+	frags := bytes.Split(data[:n], []byte{0xdf, 0x74})
+	if len(frags) == 0 {
+		return "", false
+	}
+	last := frags[len(frags)-1]
+	if len(last) < 2 {
+		return "", false
+	}
+	return strings.TrimRight(string(last[2:]), "\x00"), true
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -92,8 +111,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 	}
 
 	data := make([]byte, 512)
+	length := 0
 
-	for length := 0; length < 50; {
+	for length < 50 && length < len(data) {
 		n, err := conn.Read(data)
 		if err != nil {
 			log.Warn("RMI read connection error: %v", err)
@@ -101,9 +121,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 		}
 		length += n
 	}
-
-	frags := bytes.Split(data, []byte{0xdf, 0x74})
-	path := strings.TrimRight(string(frags[len(frags)-1][2:]), "\x00")
+	path, ok := parseRMIPath(data, length)
+	if !ok {
+		log.Warn("RMI invalid packet from %s", conn.RemoteAddr())
+		return
+	}
 
 	for _, _rule := range s.getRules() {
 		flag, flagGroup, _ := _rule.Match(path)
@@ -149,8 +171,22 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 func (s *Server) Stop() {
 	log.Info("RMI Server is stopping...")
+	s.stateLock.Lock()
+	if !s.running {
+		s.Enable = false
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = false
 	s.Enable = false
-	s.livingLock.Unlock()
+	s.stopOnce.Do(func() {
+		close(s.stopCh)
+	})
+	listener := s.listener
+	s.stateLock.Unlock()
+	if listener != nil {
+		_ = listener.Close()
+	}
 }
 
 func (s *Server) Restart() {
@@ -160,18 +196,26 @@ func (s *Server) Restart() {
 }
 
 func (s *Server) Run() {
+	s.stateLock.Lock()
+	if s.running {
+		s.stateLock.Unlock()
+		return
+	}
+	s.running = true
 	s.Enable = true
-	s.livingLock.Lock()
+	s.stopCh = make(chan struct{})
+	s.stopOnce = sync.Once{}
+	s.stateLock.Unlock()
 	defer func() {
-		if s.Enable {
-			log.Error("RMI Server exited unexpectedly")
-			s.Enable = false
-			s.livingLock.Unlock()
-		}
+		s.stateLock.Lock()
+		s.running = false
+		s.Enable = false
+		s.listener = nil
+		s.stateLock.Unlock()
 	}()
 
 	if err := s.UpdateRules(); err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
 
@@ -180,17 +224,12 @@ func (s *Server) Run() {
 
 	listener, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		log.Error(err.Error())
+		log.Error("%v", err)
 		return
 	}
-
-	go func() {
-		s.livingLock.Lock()
-		if !s.Enable {
-			_ = listener.Close()
-		}
-		s.livingLock.Unlock()
-	}()
+	s.stateLock.Lock()
+	s.listener = listener
+	s.stateLock.Unlock()
 
 	for {
 		tcpConn, err := listener.Accept()

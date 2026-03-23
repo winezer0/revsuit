@@ -15,11 +15,11 @@ import (
 func checkUpdateFromCli() {
 	log.Info("Checking for updates...")
 	if upgradeable, release, err := update.CheckUpgrade(server.VERSION); err != nil {
-		log.Warn(err.Error())
+		log.Warn("%v", err)
 	} else if upgradeable {
 		err := updateFromCli(release)
 		if err != nil {
-			log.Warn(err.Error())
+			log.Warn("%v", err)
 		}
 	} else {
 		log.Info("The current version is the latest")

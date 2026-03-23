@@ -98,15 +98,17 @@ func (s *Server) startHttpServer() {
 	}
 	err := s.httpServer.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 }
 
 func (s *Server) stopHttpServer() {
 	log.Info("HTTP Server is stopping...")
-	err := s.httpServer.Shutdown(context.TODO())
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err := s.httpServer.Shutdown(ctx)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal("%v", err)
 	}
 }
 
@@ -117,7 +119,7 @@ func (s *Server) Restart() {
 
 func (s *Server) Run() {
 	if err := s.UpdateRules(); err != nil {
-		log.Warn(err.Error())
+		log.Warn("%v", err)
 	}
 	for {
 		s.startHttpServer()
@@ -158,7 +160,7 @@ func (s *Server) Receive(c *gin.Context) {
 	u := c.Request.URL.String()
 	raw, err := getRawRequest(c.Request)
 	if err != nil {
-		log.Warn(err.Error())
+		log.Warn("%v", err)
 	}
 	for _, _rule := range s.getRules() {
 		flag, flagGroup, vars := _rule.Match(string(raw))
