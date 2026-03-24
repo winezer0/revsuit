@@ -11,8 +11,8 @@ check_upgrade: true
 ip_location_database:
   database: "qqwry"                 # qqwry or geoip.
   geo_license_key: ""               # Mandatory field, if you choose to use GeoIP.
-  qqwryUrl: "https://github.com/metowolf/qqwry.dat/releases/latest/download/qqwry.dat"
-  geoipUrl: "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
+  qqwry_url: "https://github.com/metowolf/qqwry.dat/releases/latest/download/qqwry.dat"
+  geoip_url: "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
 
 http:
   ip_header:

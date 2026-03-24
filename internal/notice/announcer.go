@@ -3,8 +3,8 @@ package notice
 import (
 	"sync"
 
-	"github.com/li4n0/revsuit/internal/record"
 	"github.com/pkg/errors"
+	"github.com/winezer0/revsuit/internal/record"
 	log "unknwon.dev/clog/v2"
 )
 

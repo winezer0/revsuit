@@ -1,0 +1,63 @@
+dns:
+    - name: dns
+      flag_format: (.*).log
+      rank: 0
+      push_to_client: false
+      notice: false
+      type: 1
+      value: 8.8.8.8
+      ttl: 10ns
+http:
+    - name: http
+      flag_format: /log/(.*)
+      rank: 0
+      push_to_client: false
+      notice: false
+      response_status_code: "200"
+      response_headers: {}
+      response_body: 403 Forbidden
+mysql:
+    - name: mysql
+      flag_format: '*'
+      rank: 0
+      push_to_client: false
+      notice: false
+      files: ""
+      exploit_jdbc_client: true
+      payloads: {}
+rmi:
+    - name: rmi
+      flag_format: '*'
+      rank: 0
+      push_to_client: false
+      notice: false
+ldap:
+    - name: rmi
+      flag_format: '*'
+      rank: 0
+      push_to_client: false
+      notice: false
+ftp:
+    - name: ftp
+      flag_format: '*'
+      rank: 0
+      push_to_client: false
+      notice: false
+      pasv_address: ""
+      data:
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49
+        - 49

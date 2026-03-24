@@ -18,7 +18,9 @@ check_upgrade: false                  # 是否自动检查更新
 ip_location_database:                 # IP 数据库相关配置
   database: "qqwry"                   # qqwry 或者 geoip.
   geo_license_key: ""                 # 如果你使用 GeoIP 则该字段为必填
-  
+  qqwry_url: "https://github.com/metowolf/qqwry.dat/releases/latest/download/qqwry.dat"
+  geoip_url: "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
+
 http:                                 # HTTP 反连相关配置
   ip_header:                          # 通过 HTTP 请求头获取来源IP，通常在有前置反向代理时需要配置
 dns:                                  # DNS 反连相关配置

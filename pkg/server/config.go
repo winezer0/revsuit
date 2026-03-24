@@ -1,13 +1,13 @@
 package server
 
 import (
-	"github.com/li4n0/revsuit/internal/ipinfo"
-	"github.com/li4n0/revsuit/pkg/dns"
-	"github.com/li4n0/revsuit/pkg/ftp"
-	"github.com/li4n0/revsuit/pkg/ldap"
-	"github.com/li4n0/revsuit/pkg/mysql"
-	"github.com/li4n0/revsuit/pkg/rhttp"
-	"github.com/li4n0/revsuit/pkg/rmi"
+	"github.com/winezer0/revsuit/internal/ipinfo"
+	"github.com/winezer0/revsuit/pkg/dns"
+	"github.com/winezer0/revsuit/pkg/ftp"
+	"github.com/winezer0/revsuit/pkg/ldap"
+	"github.com/winezer0/revsuit/pkg/mysql"
+	"github.com/winezer0/revsuit/pkg/rhttp"
+	"github.com/winezer0/revsuit/pkg/rmi"
 )
 
 type noticeConfig struct {

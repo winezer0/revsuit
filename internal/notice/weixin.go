@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/li4n0/revsuit/internal/record"
 	"github.com/pkg/errors"
+	"github.com/winezer0/revsuit/internal/record"
 )
 
 var _ Bot = (*Weixin)(nil)

@@ -8,11 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/li4n0/revsuit/internal/database"
-	"github.com/li4n0/revsuit/internal/file"
-	"github.com/li4n0/revsuit/internal/ipinfo"
-	"github.com/li4n0/revsuit/pkg/mysql/vmysql"
 	"github.com/pkg/errors"
+	"github.com/winezer0/revsuit/internal/database"
+	"github.com/winezer0/revsuit/internal/file"
+	"github.com/winezer0/revsuit/internal/ipinfo"
+	"github.com/winezer0/revsuit/pkg/mysql/vmysql"
 	log "unknwon.dev/clog/v2"
 	"vitess.io/vitess/go/sqltypes"
 )

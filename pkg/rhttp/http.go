@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/li4n0/revsuit/internal/database"
-	"github.com/li4n0/revsuit/internal/ipinfo"
+	"github.com/winezer0/revsuit/internal/database"
+	"github.com/winezer0/revsuit/internal/ipinfo"
 	log "unknwon.dev/clog/v2"
 )
 

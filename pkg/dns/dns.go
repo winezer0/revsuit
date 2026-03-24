@@ -6,13 +6,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/li4n0/revsuit/internal/database"
-	"github.com/li4n0/revsuit/internal/ipinfo"
-	"github.com/li4n0/revsuit/internal/newdns"
-	"github.com/li4n0/revsuit/internal/recycler"
-	"github.com/li4n0/revsuit/internal/rule"
 	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
+	"github.com/winezer0/revsuit/internal/database"
+	"github.com/winezer0/revsuit/internal/ipinfo"
+	"github.com/winezer0/revsuit/internal/newdns"
+	"github.com/winezer0/revsuit/internal/recycler"
+	"github.com/winezer0/revsuit/internal/rule"
 	log "unknwon.dev/clog/v2"
 )
 

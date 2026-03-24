@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/li4n0/revsuit/internal/record"
+	"github.com/winezer0/revsuit/internal/record"
 )
 
 func formatRecordField(r record.Record, fieldFormat string) (content string) {

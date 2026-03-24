@@ -119,14 +119,14 @@
       </a-layout-content>
       <div class="copyright">
         <p v-if="!this.upgrade.upgradeable">
-          RevSuit Current Version: {{ this.version }}｜&copy; 2021 <a href="https://github.com/Li4n0">Li4n0</a>｜<a
-            href="https://github.com/Li4n0/revsuit">GitHub</a>
+          RevSuit Current Version: {{ this.version }}｜&copy; 2026 <a href="https://github.com/winezer0">winezer0</a>｜<a
+            href="https://github.com/winezer0/revsuit">GitHub</a>
         </p>
         <p v-else>
           RevSuit {{ this.version }}(Upgrade Available: <a
             target="_blank"
-            :href="this.upgrade.release">v{{ this.upgrade.version }}</a>)｜&copy; 2021 <a
-            href="https://github.com/Li4n0">Li4n0</a>｜<a href="https://github.com/Li4n0/revsuit">GitHub</a>
+            :href="this.upgrade.release">v{{ this.upgrade.version }}</a>)｜&copy; 2026 <a
+            href="https://github.com/winezer0">winezer0</a>｜<a href="https://github.com/winezer0/revsuit">GitHub</a>
         </p>
 
       </div>

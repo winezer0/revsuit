@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/li4n0/revsuit/internal/database"
-	"github.com/li4n0/revsuit/internal/file"
-	"github.com/li4n0/revsuit/internal/notice"
-	"github.com/li4n0/revsuit/internal/record"
+	"github.com/winezer0/revsuit/internal/database"
+	"github.com/winezer0/revsuit/internal/file"
+	"github.com/winezer0/revsuit/internal/notice"
+	"github.com/winezer0/revsuit/internal/record"
 	"gorm.io/gorm"
 	log "unknwon.dev/clog/v2"
 )

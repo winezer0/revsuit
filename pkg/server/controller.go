@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/li4n0/revsuit/internal/recycler"
-	"github.com/li4n0/revsuit/internal/update"
+	"github.com/winezer0/revsuit/internal/recycler"
+	"github.com/winezer0/revsuit/internal/update"
 	log "unknwon.dev/clog/v2"
 )
 

@@ -1,4 +1,4 @@
-module github.com/li4n0/revsuit
+module github.com/winezer0/revsuit
 
 go 1.25.5
 

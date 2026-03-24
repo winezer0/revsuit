@@ -26,7 +26,7 @@ RevSuit 是一款灵活并且强大的反连平台。目前支持 HTTP、DNS、R
 在 Releases 里下载最新版本的 RevSuit，或者通过以下命令自行编译：
 
 ```bash
-git clone https://github.com/Li4n0/revsuit.git
+git clone https://github.com/winezer0/revsuit.git
 cd revsuit/frontend && npm install --legacy-peer-deps && npm run build
 cd ../ && go build ./cmd/revsuit/main.go
 ```

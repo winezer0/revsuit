@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/li4n0/revsuit/internal/update"
-	"github.com/li4n0/revsuit/pkg/server"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
+	"github.com/winezer0/revsuit/internal/update"
+	"github.com/winezer0/revsuit/pkg/server"
 	log "unknwon.dev/clog/v2"
 )
 
@@ -43,7 +43,7 @@ func updateFromCli(release *selfupdate.Release) error {
 			log.Error("error when locate executable path, err: %v", err)
 		}
 
-		assetURL := "https://upgrade.revsuit.pro" + strings.TrimPrefix(release.AssetURL, "https://github.com/Li4n0/revsuit/releases") + "?from=" + server.VERSION
+		assetURL := "https://upgrade.revsuit.pro" + strings.TrimPrefix(release.AssetURL, "https://github.com/winezer0/revsuit/releases") + "?from=" + server.VERSION
 
 		log.Info("Downloading from %s", assetURL)
 		if err := selfupdate.UpdateTo(assetURL, exe); err != nil {

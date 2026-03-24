@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/li4n0/revsuit/internal/recycler"
+	"github.com/winezer0/revsuit/internal/recycler"
 	log "unknwon.dev/clog/v2"
 	"vitess.io/vitess/go/netutil"
 	"vitess.io/vitess/go/sqltypes"

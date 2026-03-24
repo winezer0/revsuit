@@ -6,14 +6,14 @@ import (
 	"path"
 
 	"github.com/gin-gonic/gin"
-	"github.com/li4n0/revsuit/frontend"
-	"github.com/li4n0/revsuit/internal/file"
-	"github.com/li4n0/revsuit/pkg/dns"
-	"github.com/li4n0/revsuit/pkg/ftp"
-	"github.com/li4n0/revsuit/pkg/ldap"
-	"github.com/li4n0/revsuit/pkg/mysql"
-	"github.com/li4n0/revsuit/pkg/rhttp"
-	"github.com/li4n0/revsuit/pkg/rmi"
+	"github.com/winezer0/revsuit/frontend"
+	"github.com/winezer0/revsuit/internal/file"
+	"github.com/winezer0/revsuit/pkg/dns"
+	"github.com/winezer0/revsuit/pkg/ftp"
+	"github.com/winezer0/revsuit/pkg/ldap"
+	"github.com/winezer0/revsuit/pkg/mysql"
+	"github.com/winezer0/revsuit/pkg/rhttp"
+	"github.com/winezer0/revsuit/pkg/rmi"
 	log "unknwon.dev/clog/v2"
 )
 

@@ -19,7 +19,9 @@ check_upgrade: true                   # Whether to automatically check for updat
 ip_location_database:                 # IP database related configuration
   database: "qqwry"                   # qqwry or geoip.
   geo_license_key: ""                 # Mandatory field, if you choose to use GeoIP.
-  
+  qqwry_url: "https://github.com/metowolf/qqwry.dat/releases/latest/download/qqwry.dat"
+  geoip_url: "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=%s&suffix=tar.gz"
+
 http:                                 # HTTP receive connection related configuration
   ip_header:                          # Specify the source IP via the HTTP Header, which is usually required when there is a predecessor reverse proxy
 dns:                                  # DNS receive connection related configuration

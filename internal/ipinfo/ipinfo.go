@@ -1,8 +1,8 @@
 package ipinfo
 
 import (
-	"github.com/li4n0/revsuit/internal/ipinfo/geoip"
-	"github.com/li4n0/revsuit/internal/ipinfo/qqwry"
+	"github.com/winezer0/revsuit/internal/ipinfo/geoip"
+	"github.com/winezer0/revsuit/internal/ipinfo/qqwry"
 	log "unknwon.dev/clog/v2"
 )
 

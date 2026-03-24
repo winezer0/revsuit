@@ -61,23 +61,23 @@ jobs:
           VERSION=${{ steps.get_version.outputs.VERSION }}
           
           # Linux amd64
-          CGO_ENABLED=0 GOARCH=amd64 go build -ldflags="-s -w -X github.com/li4n0/revsuit/pkg/server.VERSION=$VERSION" -tags netgo -trimpath -o bin/revsuit_linux_amd64 ./cmd/revsuit/main.go
+          CGO_ENABLED=0 GOARCH=amd64 go build -ldflags="-s -w -X github.com/winezer0/revsuit/pkg/server.VERSION=$VERSION" -tags netgo -trimpath -o bin/revsuit_linux_amd64 ./cmd/revsuit/main.go
           tar -zcvf bin/revsuit_linux_amd64.$VERSION.tar.gz -C bin revsuit_linux_amd64
           
           # Linux arm64
-          CGO_ENABLED=0 GOARCH=arm64 go build -ldflags="-s -w -X github.com/li4n0/revsuit/pkg/server.VERSION=$VERSION" -tags netgo -trimpath -o bin/revsuit_linux_arm64 ./cmd/revsuit/main.go
+          CGO_ENABLED=0 GOARCH=arm64 go build -ldflags="-s -w -X github.com/winezer0/revsuit/pkg/server.VERSION=$VERSION" -tags netgo -trimpath -o bin/revsuit_linux_arm64 ./cmd/revsuit/main.go
           tar -zcvf bin/revsuit_linux_arm64.$VERSION.tar.gz -C bin revsuit_linux_arm64
           
           # Darwin amd64
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/li4n0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_darwin_amd64 ./cmd/revsuit/main.go
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/winezer0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_darwin_amd64 ./cmd/revsuit/main.go
           tar -zcvf bin/revsuit_darwin_amd64.$VERSION.tar.gz -C bin revsuit_darwin_amd64
           
           # Darwin arm64
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/li4n0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_darwin_arm64 ./cmd/revsuit/main.go
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/winezer0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_darwin_arm64 ./cmd/revsuit/main.go
           tar -zcvf bin/revsuit_darwin_arm64.$VERSION.tar.gz -C bin revsuit_darwin_arm64
           
           # Windows amd64
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/li4n0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_windows_amd64.exe ./cmd/revsuit/main.go
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/winezer0/revsuit/pkg/server.VERSION=$VERSION" -trimpath -o bin/revsuit_windows_amd64.exe ./cmd/revsuit/main.go
           tar -zcvf bin/revsuit_windows_amd64.$VERSION.tar.gz -C bin revsuit_windows_amd64.exe
 
       # 只上传压缩包

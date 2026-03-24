@@ -5,8 +5,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/li4n0/revsuit/pkg/server"
 	"github.com/urfave/cli/v2"
+	"github.com/winezer0/revsuit/pkg/server"
 	"gopkg.in/yaml.v3"
 	log "unknwon.dev/clog/v2"
 )
